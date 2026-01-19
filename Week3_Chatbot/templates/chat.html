@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Ilea's Web Chatbot</title>
+</head>
+<body>
+    <h1>Ilea's Web Chatbot</h1>
+    <!-- Form for User Input -->
+    <form method="post"> <!-- Create form for user input -->
+        <input type="text" name="user_input" placeholder="Type your message..." required>
+        <input type="submit" value="Send">
+    </form>
+    {% if bot_response %} <!-- Jinja2 Template Syntax to check if bot_response exists -->
+        <p><strong>Bot:</strong> {{ bot_response }}</p>
+    {% endif %}
+</body>
+</html>
