@@ -2,16 +2,35 @@
 <html>
 <head>
     <title>Ilea's Web Chatbot</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-    <h1>Ilea's Web Chatbot</h1>
+    <div class="container">
+    <h1>Activity Chatbot</h1>
+    <p>
+        Hi, I'm an activity chatbot. I can help you find events, restaurants, breweries, sights, theaters, movies, and recipes based on your input. All things perfect for a date night or fun day out.
+    </p>
+    <p>
+    <strong>Try asking things like:</strong><br>
+   <ul>
+    <li>Events in [city]</li>
+    <li>Restaurants near [city or zipcode]</li>
+    <li>Breweries in [city or zipcode]</li>
+    <li>Sights in [city or zipcode]</li>
+    <li>Theaters in [city or zipcode]</li>
+    <li>Movies in [city]</li>
+    <li>Recipes for [ingredient]</li>
+    <li>Help</li>
+</ul>
+</p>
     <!-- Form for User Input -->
     <form method="post"> <!-- Create form for user input -->
         <input type="text" name="user_input" placeholder="Type your message..." required>
         <input type="submit" value="Send">
     </form>
     {% if bot_response %} <!-- Jinja2 Template Syntax to check if bot_response exists -->
-        <p><strong>Bot:</strong> {{ bot_response }}</p>
+        <p><strong>Bot:</strong> {{ bot_response|safe }}</p> <!-- Display bot response -->
     {% endif %}
+    </div>
 </body>
 </html>

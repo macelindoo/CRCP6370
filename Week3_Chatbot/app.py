@@ -137,53 +137,99 @@ app = Flask(__name__)
 # Simple Bot Logic Function (def): take user input and return a response
 def get_bot_response(user_input):
     user_input_lower = user_input.lower()
-    if "events in" in user_input_lower:
+
+    # Help command
+    if "help" in user_input_lower or "directions" in user_input_lower:
+        return (
+            "You can ask me about:<br>"
+            "<em>events in [city], restaurants in [city/state/country or zipcode], breweries in [city/state/country or zipcode],<br>"
+            "sights in [city/state/country or zipcode], theaters in [city/state/country or zipcode], movies in [city],<br>"
+            "recipes for [ingredient], hello</em><br><br>"
+            "Examples:<br>"
+            "restaurants in Dallas<br>"
+            "restaurants near 75001<br>"
+            "breweries in Austin<br>"
+            "sights in Paris, France<br>"
+            "theaters in Miami, OK<br>"
+            "movies in Houston<br>"
+            "recipes for chicken"
+        )
+
+    # Flexible restaurant queries (city, state, country, or zipcode)
+    elif (
+        "where can i eat" in user_input_lower
+        or "places to eat" in user_input_lower
+        or "good food" in user_input_lower
+        or "restaurants near" in user_input_lower
+        or "places to eat near" in user_input_lower
+    ):
+        import re
+        match = re.search(r"(?:near|in)\s+([a-zA-Z0-9 ,]+)", user_input_lower)
+        if match:
+            location = match.group(1).strip()
+            places = get_geoapify_places(location, category="catering.restaurant")
+            return f"Here are some places to eat near {location}:<br>" + "<br>".join(places)
+        else:
+            return "Please specify a city, state, country, or zipcode, e.g., 'restaurants in Dallas' or 'places to eat near 75001'."
+
+    # Events
+    elif "events in" in user_input_lower:
         city = user_input_lower.split("in")[-1].strip()
         events = get_ticketmaster_events(city)
-        return "Here are some upcoming events:\n" + "\n".join(events)
+        return "Here are some upcoming events:<br>" + "<br>".join(events)
+
+    # Restaurants (direct command)
     elif "food in" in user_input_lower or "restaurants in" in user_input_lower:
         city = user_input_lower.split("in")[-1].strip()
-        # Use Geoapify to find restaurants
         places = get_geoapify_places(city, category="catering.restaurant")
-        return "Here are some places to eat:\n" + "\n".join(places)
+        return "Here are some places to eat:<br>" + "<br>".join(places)
+
+    # Sights
     elif "sights in" in user_input_lower or "tourist in" in user_input_lower:
         city = user_input_lower.split("in")[-1].strip()
-        # Use Geoapify to find sights (default category)
         places = get_geoapify_places(city)
-        return "Here are some sights to see:\n" + "\n".join(places)
+        return "Here are some sights to see:<br>" + "<br>".join(places)
+
+    # Breweries
     elif "breweries in" in user_input_lower:
         city = user_input_lower.split("in")[-1].strip()
         breweries = get_breweries(city)
-        return "Here are some breweries:\n" + "\n".join(breweries)
+        return "Here are some breweries:<br>" + "<br>".join(breweries)
+
+    # Recipes
     elif "recipes for" in user_input_lower:
         ingredient = user_input_lower.split("for")[-1].strip()
         recipes = get_meal_recipes(ingredient)
-        return f"Here are some recipes with {ingredient}:\n" + "\n".join(recipes)
-    elif "movies in" in user_input_lower: # New combined command
+        return f"Here are some recipes with {ingredient}:<br>" + "<br>".join(recipes)
+
+    # Movies + Theaters (combined)
+    elif "movies in" in user_input_lower:
         city = user_input_lower.split("in")[-1].strip()
-        
-        # Call both API functions
         movies = get_popular_movies()
         theaters = get_geoapify_places(city, category="entertainment.cinema")
-        
-        # Combine the results into one response
-        movies_response = "Here are some popular movies right now:\n" + "\n".join(movies)
-        theaters_response = f"\n\nHere are some theaters in {city}:\n" + "\n".join(theaters)
-        
+        movies_response = "Here are some popular movies right now:<br>" + "<br>".join(movies)
+        theaters_response = f"<br><br>Here are some theaters in {city}:<br>" + "<br>".join(theaters)
         return movies_response + theaters_response
+
+    # Popular movies only
     elif "popular movies" in user_input_lower:
         movies = get_popular_movies()
-        return "Here are some popular movies right now:\n" + "\n".join(movies)
+        return "Here are some popular movies right now:<br>" + "<br>".join(movies)
+
+    # Theaters only
     elif "theaters in" in user_input_lower or "cinemas in" in user_input_lower:
         city = user_input_lower.split("in")[-1].strip()
         theaters = get_geoapify_places(city, category="entertainment.cinema")
-        return "Here are some movie theaters:\n" + "\n".join(theaters)
+        return "Here are some movie theaters:<br>" + "<br>".join(theaters)
+
+    # Greetings
     elif "hello" in user_input_lower:
         return "Hello! How can I help you today?"
-    elif "joke" in user_input_lower:
-        return "Why did the computer show up at work late? It had a hard drive!"
+
+    # Fallback
     else:
         return f"You said: {user_input}"
+    
 
 # Route for Chat Interface
 @app.route("/", methods=["GET", "POST"])
