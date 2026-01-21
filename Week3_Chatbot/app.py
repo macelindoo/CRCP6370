@@ -13,6 +13,77 @@ TMDB_API_KEY = os.getenv("TMDB_API_KEY")
 
 # Import Python Requests Library for use in API calls
 import requests
+# Import random for random selections
+import random
+
+# TMDb Genre Mapping
+TMDB_GENRES = {
+    "action": 28,
+    "adventure": 12,
+    "animation": 16,
+    "comedy": 35,
+    "crime": 80,
+    "documentary": 99,
+    "drama": 18,
+    "family": 10751,
+    "fantasy": 14,
+    "history": 36,
+    "horror": 27,
+    "music": 10402,
+    "mystery": 9648,
+    "romance": 10749,
+    "science fiction": 878,
+    "sci-fi": 878,
+    "tv movie": 10770,
+    "thriller": 53,
+    "war": 10752,
+    "western": 37
+}
+
+# Function to get movies by genre and year from TMDb
+def get_movies_by_genre(genre=None, year=None):
+    url = "https://api.themoviedb.org/3/discover/movie"
+    params = {
+        "api_key": TMDB_API_KEY,
+        "sort_by": "popularity.desc",
+        "page": 1
+    }
+    if genre and genre in TMDB_GENRES:
+        params["with_genres"] = TMDB_GENRES[genre]
+    if year:
+        params["primary_release_year"] = year
+    response = requests.get(url, params=params)
+    if response.status_code == 200:
+        data = response.json()
+        movies = data.get("results", [])
+        # Return (title, TMDb URL) tuples
+        result = [
+            (movie.get("title"), f"https://www.themoviedb.org/movie/{movie.get('id')}")
+            for movie in movies[:15]
+        ]
+        return result if result else []
+    else:
+        print("TMDb Error:", response.status_code, response.text)
+        return []
+
+# Function to get book recommendations from Google Books API
+def get_book_recommendation(subject="fiction"):
+    url = f"https://www.googleapis.com/books/v1/volumes"
+    params = {"q": f"subject:{subject}", "maxResults": 10}
+    response = requests.get(url, params=params)
+    if response.status_code == 200:
+        data = response.json()
+        items = data.get("items", [])
+        if items:
+            book = random.choice(items)
+            info = book.get("volumeInfo", {})
+            title = info.get("title", "Unknown Title")
+            authors = ", ".join(info.get("authors", [])) if info.get("authors") else "Unknown Author"
+            return f"<strong>{title}</strong> by {authors}"
+        else:
+            return "No books found for that subject."
+    else:
+        return "Error fetching book recommendations."
 
 # Function to get events from Ticketmaster API
 def get_ticketmaster_events(city):
@@ -30,10 +101,12 @@ def get_ticketmaster_events(city):
         for event in events:
             name = event.get("name")
             date = event.get("dates", {}).get("start", {}).get("localDate")
-            result.append(f"{name} on {date}")
-        return result if result else ["No events found."]
+            url = event.get("url")  # Ticketmaster event page
+            if name and url:
+                result.append((f"{name} on {date}", url))
+        return result if result else []
     else:
-        return ["Error fetching events."]
+        return []
 
 # Function to get city coordinates from Geoapify API
 def get_city_coordinates(city):
@@ -52,14 +125,14 @@ def get_city_coordinates(city):
     return None, None
 
 # Function to get places from Geoapify API
-def get_geoapify_places(city, category="tourism.sights"):
+def get_geoapify_places(city, category="tourism.sights", radius=80000):
     lon, lat = get_city_coordinates(city)
     if lon is None or lat is None:
-        return ["Could not find city coordinates."]
+        return []
     url = "https://api.geoapify.com/v2/places"
     params = {
         "categories": category,
-        "filter": f"circle:{lon},{lat},80000",  # 80km radius
+        "filter": f"circle:{lon},{lat},{radius}",  # radius in meters
         "limit": 15,
         "apiKey": GEOAPIFY_API_KEY
     }
@@ -71,11 +144,11 @@ def get_geoapify_places(city, category="tourism.sights"):
         for place in places:
             name = place.get("properties", {}).get("name")
             address = place.get("properties", {}).get("formatted")
-            if name and address: # Only include places with a name and address
+            if name and address:
                 result.append(f"{name} - {address}")
-        return result if result else [f"No places found for category '{category}'."]
+        return result
     else:
-        return ["Error fetching Geoapify places."]
+        return []
 
 # Function to get breweries from Open Brewery DB
 def get_breweries(city):
@@ -106,12 +179,16 @@ def get_meal_recipes(ingredient):
         data = response.json()
         meals = data.get("meals")
         if meals:
-            result = [meal.get("strMeal") for meal in meals[:15]] # Get up to 15 meals
+            # Return a list of (name, link) tuples
+            result = [
+                (meal.get("strMeal"), f"https://www.themealdb.com/meal/{meal.get('idMeal')}")
+                for meal in meals[:15]
+            ]
             return result
         else:
-            return [f"No recipes found for {ingredient}."]
+            return []
     else:
-        return ["Error fetching recipes."]
+        return []
     
 # Function to get popular movies from TMDb
 def get_popular_movies():
@@ -119,17 +196,19 @@ def get_popular_movies():
     params = {
         "api_key": TMDB_API_KEY
     }
-    response = requests.get(url, params=params) # Use params instead of headers
+    response = requests.get(url, params=params)
     if response.status_code == 200:
         data = response.json()
         movies = data.get("results", [])
-        # Get the top 15 movie titles
-        result = [movie.get("title") for movie in movies[:15]]
-        return result if result else ["No popular movies found."]
+        # Return (title, TMDb URL) tuples
+        result = [
+            (movie.get("title"), f"https://www.themoviedb.org/movie/{movie.get('id')}")
+            for movie in movies[:15]
+        ]
+        return result if result else []
     else:
-        # Add a print statement to see the error from the API
         print("TMDb Error:", response.status_code, response.text)
-        return ["Error fetching popular movies."]
+        return []
 
 # Creating Flask App
 app = Flask(__name__)
@@ -141,18 +220,21 @@ def get_bot_response(user_input):
     # Help command
     if "help" in user_input_lower or "directions" in user_input_lower:
         return (
-            "You can ask me about:<br>"
-            "<em>events in [city], restaurants in [city/state/country or zipcode], breweries in [city/state/country or zipcode],<br>"
-            "sights in [city/state/country or zipcode], theaters in [city/state/country or zipcode], movies in [city],<br>"
-            "recipes for [ingredient], hello</em><br><br>"
-            "Examples:<br>"
-            "restaurants in Dallas<br>"
-            "restaurants near 75001<br>"
-            "breweries in Austin<br>"
-            "sights in Paris, France<br>"
-            "theaters in Miami, OK<br>"
-            "movies in Houston<br>"
-            "recipes for chicken"
+            "<strong>Welcome to the Activity Chatbot!</strong><br><br>"
+            "I can help you find <b>events</b>, <b>restaurants</b>, <b>breweries</b>, <b>sights</b>, <b>theaters</b>, <b>movies</b>, <b>recipes</b>, and <b>books</b>.<br><br>"
+            "<b>How to use me:</b><ul>"
+            "<li>events in Dallas</li>"
+            "<li>restaurants near 75001</li>"
+            "<li>breweries in Austin</li>"
+            "<li>sights in Paris, France</li>"
+            "<li>theaters in Miami, OK</li>"
+            "<li>movies in Houston</li>"
+            "<li>action movies from 1995</li>"
+            "<li>random movie</li>"
+            "<li>recipes for chicken</li>"
+            "<li>book about science</li>"
+            "</ul>"
+            "You can use <b>in</b> or <b>near</b> for city, state, country, or zipcode. If nothing is found, I'll automatically expand the search area!"
         )
 
     # Flexible restaurant queries (city, state, country, or zipcode)
@@ -162,13 +244,25 @@ def get_bot_response(user_input):
         or "good food" in user_input_lower
         or "restaurants near" in user_input_lower
         or "places to eat near" in user_input_lower
+        or "restaurants in" in user_input_lower
+        or "food in" in user_input_lower
     ):
         import re
         match = re.search(r"(?:near|in)\s+([a-zA-Z0-9 ,]+)", user_input_lower)
         if match:
             location = match.group(1).strip()
-            places = get_geoapify_places(location, category="catering.restaurant")
-            return f"Here are some places to eat near {location}:<br>" + "<br>".join(places)
+            # Try default radius first
+            places = get_geoapify_places(location, category="catering.restaurant", radius=80000)
+            # If no results, try a larger radius
+            if not places:
+                places = get_geoapify_places(location, category="catering.restaurant", radius=150000)
+            if not places:
+                return f"No restaurants found near {location}."
+            restaurant_links = [
+                f'<a href="https://www.google.com/maps/search/{name.split(" - ")[0].replace(" ", "+")}+{location.replace(" ", "+")}" target="_blank">{name}</a>'
+                for name in places
+            ]
+            return f"Here are some places to eat near {location}:<br>" + "<br>".join(restaurant_links)
         else:
             return "Please specify a city, state, country, or zipcode, e.g., 'restaurants in Dallas' or 'places to eat near 75001'."
 
@@ -176,51 +270,216 @@ def get_bot_response(user_input):
     elif "events in" in user_input_lower:
         city = user_input_lower.split("in")[-1].strip()
         events = get_ticketmaster_events(city)
-        return "Here are some upcoming events:<br>" + "<br>".join(events)
+        if not events:
+            return f"No events found in {city}."
+        event_links = [
+            f'<a href="{url}" target="_blank">{name}</a>'
+            for name, url in events
+        ]
+        return f"Here are some upcoming events:<br>" + "<br>".join(event_links)
 
     # Restaurants (direct command)
     elif "food in" in user_input_lower or "restaurants in" in user_input_lower:
         city = user_input_lower.split("in")[-1].strip()
         places = get_geoapify_places(city, category="catering.restaurant")
-        return "Here are some places to eat:<br>" + "<br>".join(places)
+        if not places:
+            return f"No restaurants found in {city}."
+        restaurant_links = [
+            f'<a href="https://www.google.com/maps/search/{name.replace(" ", "+")}+{city.replace(" ", "+")}" target="_blank">{name}</a>'
+            for name in places
+        ]
+        return f"Here are some places to eat:<br>" + "<br>".join(restaurant_links)
 
     # Sights
-    elif "sights in" in user_input_lower or "tourist in" in user_input_lower:
-        city = user_input_lower.split("in")[-1].strip()
-        places = get_geoapify_places(city)
-        return "Here are some sights to see:<br>" + "<br>".join(places)
+    elif (
+            "sights" in user_input_lower
+            or "tourist" in user_input_lower
+        ):
+            import re
+            match = re.search(r"(?:near|in)\s+([a-zA-Z0-9 ,]+)", user_input_lower)
+            if match:
+                location = match.group(1).strip()
+                # Try default radius first
+                places = get_geoapify_places(location, category="tourism.sights", radius=80000)
+                # If no results, try a larger radius
+                if not places:
+                    places = get_geoapify_places(location, category="tourism.sights", radius=150000)
+                if not places:
+                    return f"No sights found near {location}."
+                sight_links = [
+                    f'<a href="https://www.google.com/maps/search/{name.split(" - ")[0].replace(" ", "+")}+{location.replace(" ", "+")}" target="_blank">{name}</a>'
+                    for name in places
+                ]
+                return f"Here are some sights to see near {location}:<br>" + "<br>".join(sight_links)
+            else:
+                return "Please specify a city, state, country, or zipcode, e.g., 'sights in Paris' or 'tourist near 75001'."
 
     # Breweries
     elif "breweries in" in user_input_lower:
         city = user_input_lower.split("in")[-1].strip()
         breweries = get_breweries(city)
-        return "Here are some breweries:<br>" + "<br>".join(breweries)
+        if not breweries:
+            return f"No breweries found in {city}."
+        brewery_links = [
+            f'<a href="https://www.google.com/maps/search/{name.replace(" ", "+")}+{city.replace(" ", "+")}" target="_blank">{name}</a>'
+            for name in breweries
+        ]
+        return f"Here are some breweries:<br>" + "<br>".join(brewery_links)
 
     # Recipes
     elif "recipes for" in user_input_lower:
         ingredient = user_input_lower.split("for")[-1].strip()
         recipes = get_meal_recipes(ingredient)
-        return f"Here are some recipes with {ingredient}:<br>" + "<br>".join(recipes)
+        if not recipes:
+            return f"No recipes found for {ingredient}."
+        recipe_links = [f'<a href="{url}" target="_blank">{name}</a>' for name, url in recipes]
+        return f"Here are some recipes with {ingredient}:<br>" + "<br>".join(recipe_links)
 
     # Movies + Theaters (combined)
     elif "movies in" in user_input_lower:
         city = user_input_lower.split("in")[-1].strip()
         movies = get_popular_movies()
         theaters = get_geoapify_places(city, category="entertainment.cinema")
-        movies_response = "Here are some popular movies right now:<br>" + "<br>".join(movies)
-        theaters_response = f"<br><br>Here are some theaters in {city}:<br>" + "<br>".join(theaters)
+        # Make movie titles clickable
+        movie_links = [f'<a href="{url}" target="_blank">{title}</a>' for title, url in movies]
+        # Make theater names clickable (Google Maps search)
+        theater_links = [
+            f'<a href="https://www.google.com/maps/search/{name.replace(" ", "+")}+{city.replace(" ", "+")}" target="_blank">{name}</a>'
+            for name in theaters
+        ]
+        movies_response = "Here are some popular movies right now:<br>" + "<br>".join(movie_links)
+        theaters_response = f"<br><br>Here are some theaters in {city}:<br>" + "<br>".join(theater_links)
         return movies_response + theaters_response
 
-    # Popular movies only
-    elif "popular movies" in user_input_lower:
-        movies = get_popular_movies()
-        return "Here are some popular movies right now:<br>" + "<br>".join(movies)
+       # Movies by genre, year, decade, or random
+    elif "movie" in user_input_lower:
+        import re
+        import random as pyrandom
+
+        # Extract genre
+        genre = None
+        for g in TMDB_GENRES:
+            if g in user_input_lower:
+                genre = g
+                break
+
+        # Extract year
+        year = None
+        match_year = re.search(r"\b(19\d{2}|20\d{2})\b", user_input_lower)
+        if match_year:
+            year = match_year.group(1)
+
+        # Extract decade (e.g., "1980s", "1970s")
+        match_decade = re.search(r"\b(19\d0|20\d0)s\b", user_input_lower)
+        if match_decade:
+            decade_start = int(match_decade.group(1))
+            year = str(pyrandom.randint(decade_start, decade_start + 9))
+
+        # Random movie request
+        if "random" in user_input_lower:
+            # Pick a random year between 1950 and last year
+            rand_year = pyrandom.randint(1950, 2025)
+            # Pick a random page (TMDb allows up to 500)
+            rand_page = pyrandom.randint(1, 10)
+            url = "https://api.themoviedb.org/3/discover/movie"
+            params = {
+                "api_key": TMDB_API_KEY,
+                "sort_by": "popularity.desc",
+                "page": rand_page,
+                "primary_release_year": rand_year
+            }
+            response = requests.get(url, params=params)
+            if response.status_code == 200:
+                data = response.json()
+                movies = data.get("results", [])
+                if movies:
+                    movie = pyrandom.choice(movies)
+                    title = movie.get("title", "Unknown Title")
+                    link = f"https://www.themoviedb.org/movie/{movie.get('id')}"
+                    return f'Here is a random movie from {rand_year}:<br><a href="{link}" target="_blank">{title}</a>'
+                else:
+                    return "Couldn't find a random movie right now."
+            else:
+                return "Error fetching a random movie."
+        else:
+            movies = get_movies_by_genre(genre, year)
+            if not movies:
+                return "No movies found for your request."
+            movie_links = [f'<a href="{url}" target="_blank">{title}</a>' for title, url in movies]
+            if genre and year:
+                header = f"Here are some {genre.title()} movies from {year}:<br>"
+            elif genre:
+                header = f"Here are some {genre.title()} movies:<br>"
+            elif year:
+                header = f"Here are some movies from {year}:<br>"
+            else:
+                header = "Here are some popular movies right now:<br>"
+            return header + "<br>".join(movie_links)
 
     # Theaters only
-    elif "theaters in" in user_input_lower or "cinemas in" in user_input_lower:
-        city = user_input_lower.split("in")[-1].strip()
-        theaters = get_geoapify_places(city, category="entertainment.cinema")
-        return "Here are some movie theaters:<br>" + "<br>".join(theaters)
+    elif (
+            "theaters" in user_input_lower
+            or "cinemas" in user_input_lower
+        ):
+            import re
+            match = re.search(r"(?:near|in)\s+([a-zA-Z0-9 ,]+)", user_input_lower)
+            if match:
+                location = match.group(1).strip()
+                # Try default radius first
+                theaters = get_geoapify_places(location, category="entertainment.cinema", radius=80000)
+                # If no results, try a larger radius
+                if not theaters:
+                    theaters = get_geoapify_places(location, category="entertainment.cinema", radius=150000)
+                if not theaters:
+                    return f"No theaters found near {location}."
+                theater_links = [
+                    f'<a href="https://www.google.com/maps/search/{name.split(" - ")[0].replace(" ", "+")}+{location.replace(" ", "+")}" target="_blank">{name}</a>'
+                    for name in theaters
+                ]
+                return f"Here are some movie theaters near {location}:<br>" + "<br>".join(theater_links)
+            else:
+                return "Please specify a city, state, country, or zipcode, e.g., 'theaters in Dallas' or 'cinemas near 75001'."
+    
+    # Book recommendations
+        # Book recommendations
+    elif "book" in user_input_lower or "read" in user_input_lower or "novel" in user_input_lower:
+        import re
+        # Try to extract a subject/genre from the user input, default to fiction
+        match = re.search(
+            r"(?:book|books|read|novel|recommendation|recommend|show me|suggest)?(?:\s*(?:about|on|for|in|of|regarding|concerning|related to|on the subject of))?\s*([a-zA-Z0-9 \-]+)?",
+            user_input_lower
+        )
+        subject = match.group(1).strip() if match and match.group(1) else "fiction"
+        # Clean up subject (remove leading words and numbers)
+        subject = re.sub(r"^(a|an|few|some|the|to|me|of|on|about|for|in|show|recommend|suggest|\d+)\s+", "", subject, flags=re.IGNORECASE)
+        subject = subject.strip().lower()
+        if not subject or subject in ["book", "books", "novel", "recommendation", "recommend", "read"]:
+            subject = "fiction"
+        url = f"https://www.googleapis.com/books/v1/volumes"
+        params = {"q": f"subject:{subject}", "maxResults": 5}
+        response = requests.get(url, params=params)
+        items = []
+        if response.status_code == 200:
+            data = response.json()
+            items = data.get("items", [])
+        # Fallback: try keyword search if subject search fails
+        if not items and subject != "fiction":
+            params = {"q": subject, "maxResults": 5}
+            response = requests.get(url, params=params)
+            if response.status_code == 200:
+                data = response.json()
+                items = data.get("items", [])
+        if items:
+            books = []
+            for book in items:
+                info = book.get("volumeInfo", {})
+                title = info.get("title", "Unknown Title")
+                authors = ", ".join(info.get("authors", [])) if info.get("authors") else "Unknown Author"
+                link = info.get("infoLink", "#")
+                books.append(f'<a href="{link}" target="_blank"><strong>{title}</strong></a> by {authors}')
+            return f"Here are some books about {subject}:<br>" + "<br>".join(books)
+        else:
+            return f"No books found for {subject}."
 
     # Greetings
     elif "hello" in user_input_lower:
@@ -229,7 +488,6 @@ def get_bot_response(user_input):
     # Fallback
     else:
         return f"You said: {user_input}"
-    
 
 # Route for Chat Interface
 @app.route("/", methods=["GET", "POST"])

@@ -61,3 +61,17 @@ p {
     margin-top: 10px;
     font-size: 1.08em;
 }
+
+/* Add spacing between multiple results inside bot responses */
+.bot-response a,
+.bot-response div,
+.bot-response li {
+    display: block;
+    margin-bottom: 10px;
+}
+
+.bot-response a:last-child,
+.bot-response div:last-child,
+.bot-response li:last-child {
+    margin-bottom: 0;
+}
