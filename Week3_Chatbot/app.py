@@ -15,6 +15,14 @@ TMDB_API_KEY = os.getenv("TMDB_API_KEY")
 import requests
 # Import random for random selections
 import random
+# Import personality json for personality traits
+import json
+#Import re for regex operations so we can match whole words
+import re
+
+# Load personality traits from JSON file
+with open('personality.json') as f:
+    PERSONALITY = json.load(f)
 
 # TMDb Genre Mapping
 TMDB_GENRES = {
@@ -217,6 +225,19 @@ app = Flask(__name__)
 def get_bot_response(user_input):
     user_input_lower = user_input.lower()
 
+    # Goodbyes
+    if any(word in user_input_lower for word in PERSONALITY.get("goodbye_keywords", [])):
+        return random.choice(PERSONALITY.get("goodbyes", ["Goodbye!"]))
+
+    # Thanks
+    if any(word in user_input_lower for word in PERSONALITY.get("thanks_keywords", [])):
+        return random.choice(PERSONALITY.get("thanks", ["You're welcome!"]))
+
+    # Greetings (match whole words only)
+    for word in PERSONALITY["greeting_keywords"]:
+        if re.search(rf"\b{re.escape(word)}\b", user_input_lower):
+            return random.choice(PERSONALITY["greetings"])
+
     # Help command
     if "help" in user_input_lower or "directions" in user_input_lower:
         return (
@@ -247,7 +268,6 @@ def get_bot_response(user_input):
         or "restaurants in" in user_input_lower
         or "food in" in user_input_lower
     ):
-        import re
         match = re.search(r"(?:near|in)\s+([a-zA-Z0-9 ,]+)", user_input_lower)
         if match:
             location = match.group(1).strip()
@@ -295,7 +315,6 @@ def get_bot_response(user_input):
             "sights" in user_input_lower
             or "tourist" in user_input_lower
         ):
-            import re
             match = re.search(r"(?:near|in)\s+([a-zA-Z0-9 ,]+)", user_input_lower)
             if match:
                 location = match.group(1).strip()
@@ -327,13 +346,17 @@ def get_bot_response(user_input):
         return f"Here are some breweries:<br>" + "<br>".join(brewery_links)
 
     # Recipes
-    elif "recipes for" in user_input_lower:
-        ingredient = user_input_lower.split("for")[-1].strip()
-        recipes = get_meal_recipes(ingredient)
-        if not recipes:
-            return f"No recipes found for {ingredient}."
-        recipe_links = [f'<a href="{url}" target="_blank">{name}</a>' for name, url in recipes]
-        return f"Here are some recipes with {ingredient}:<br>" + "<br>".join(recipe_links)
+    elif "recipes for" in user_input_lower or "recipes with" in user_input_lower or "recipes using" in user_input_lower:
+        match = re.search(r"recipes (?:for|with|using)\s+([a-zA-Z0-9 \-]+)", user_input_lower)
+        if match:
+            ingredient = match.group(1).strip()
+            recipes = get_meal_recipes(ingredient)
+            if not recipes:
+                return f"No recipes found with {ingredient}."
+            recipe_links = [f'<a href="{url}" target="_blank">{name}</a>' for name, url in recipes]
+            return f"Here are some recipes with {ingredient}:<br>" + "<br>".join(recipe_links)
+        else:
+            return "Please specify an ingredient, e.g., 'recipes with chicken'."
 
     # Movies + Theaters (combined)
     elif "movies in" in user_input_lower:
@@ -353,7 +376,6 @@ def get_bot_response(user_input):
 
        # Movies by genre, year, decade, or random
     elif "movie" in user_input_lower:
-        import re
         import random as pyrandom
 
         # Extract genre
@@ -421,7 +443,6 @@ def get_bot_response(user_input):
             "theaters" in user_input_lower
             or "cinemas" in user_input_lower
         ):
-            import re
             match = re.search(r"(?:near|in)\s+([a-zA-Z0-9 ,]+)", user_input_lower)
             if match:
                 location = match.group(1).strip()
@@ -443,7 +464,6 @@ def get_bot_response(user_input):
     # Book recommendations
         # Book recommendations
     elif "book" in user_input_lower or "read" in user_input_lower or "novel" in user_input_lower:
-        import re
         # Try to extract a subject/genre from the user input, default to fiction
         match = re.search(
             r"(?:book|books|read|novel|recommendation|recommend|show me|suggest)?(?:\s*(?:about|on|for|in|of|regarding|concerning|related to|on the subject of))?\s*([a-zA-Z0-9 \-]+)?",
@@ -487,7 +507,7 @@ def get_bot_response(user_input):
 
     # Fallback
     else:
-        return f"You said: {user_input}"
+         return random.choice(PERSONALITY["fallbacks"])
 
 # Route for Chat Interface
 @app.route("/", methods=["GET", "POST"])

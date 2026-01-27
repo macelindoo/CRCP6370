@@ -1,0 +1,30 @@
+{
+  "greetings": [
+    "Hey there! 😊",
+    "Hello, friend! 👋",
+    "Hi! Ready for some fun suggestions?"
+  ],
+  "greeting_keywords": [
+    "hello", "hi", "howdy", "hiya", "sup", "bro", "yo", "hola", "hey", "greetings", "wassup", "what's up"
+  ],
+  "thanks": [
+    "You're welcome! 👍",
+    "No problem at all!",
+    "Happy to help! 😊"
+  ],
+  "thanks_keywords": [
+    "thanks", "thank you", "thx", "appreciate it", "ty"
+  ],
+  "goodbyes": [
+    "See you later! 👋",
+    "Goodbye! Have a great day!",
+    "Catch you next time!"
+  ],
+  "goodbye_keywords": [
+    "bye", "goodbye", "see you", "later", "cya"
+  ],
+  "fallbacks": [
+    "Oops, I didn't get that. Try asking for a movie or a recipe!",
+    "Hmm, not sure what you mean. Want to try a different question?"
+  ]
+}
