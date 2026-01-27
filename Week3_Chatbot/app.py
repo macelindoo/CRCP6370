@@ -183,20 +183,30 @@ def get_meal_recipes(ingredient):
     url = "https://www.themealdb.com/api/json/v1/1/filter.php"
     params = {"i": ingredient}
     response = requests.get(url, params=params)
-    if response.status_code == 200:
-        data = response.json()
-        meals = data.get("meals")
-        if meals:
-            # Return a list of (name, link) tuples
-            result = [
-                (meal.get("strMeal"), f"https://www.themealdb.com/meal/{meal.get('idMeal')}")
-                for meal in meals[:15]
+    print("MealDB API:", response.url, response.status_code, response.text)
+    if response.status_code == 200: # Successful response
+        data = response.json() # Parse JSON response
+        meals = data.get("meals") # Get list of meals
+        if meals: # If meals found
+            return [
+                (meal.get("strMeal"), f"https://www.themealdb.com/meal/{meal.get('idMeal')}") # Return (meal name, MealDB URL) tuples
+                for meal in meals[:15] # Limit to 15 results
             ]
-            return result
         else:
-            return []
-    else:
-        return []
+            # Fallback: try searching by meal name
+            url2 = "https://www.themealdb.com/api/json/v1/1/search.php"
+            params2 = {"s": ingredient}
+            response2 = requests.get(url2, params=params2)
+            print("MealDB Fallback API:", response2.url, response2.status_code, response2.text)
+            if response2.status_code == 200:
+                data2 = response2.json()
+                meals2 = data2.get("meals")
+                if meals2:
+                    return [
+                        (meal.get("strMeal"), f"https://www.themealdb.com/meal/{meal.get('idMeal')}")
+                        for meal in meals2[:15]
+                    ]
+    return []
     
 # Function to get popular movies from TMDb
 def get_popular_movies():
@@ -282,7 +292,8 @@ def get_bot_response(user_input):
                 f'<a href="https://www.google.com/maps/search/{name.split(" - ")[0].replace(" ", "+")}+{location.replace(" ", "+")}" target="_blank">{name}</a>'
                 for name in places
             ]
-            return f"Here are some places to eat near {location}:<br>" + "<br>".join(restaurant_links)
+            intro = random.choice(PERSONALITY.get("restaurant_intros", ["Here are some places to eat:"]))
+            return f"{intro}<br>" + "<br>".join(restaurant_links)
         else:
             return "Please specify a city, state, country, or zipcode, e.g., 'restaurants in Dallas' or 'places to eat near 75001'."
 
@@ -296,7 +307,8 @@ def get_bot_response(user_input):
             f'<a href="{url}" target="_blank">{name}</a>'
             for name, url in events
         ]
-        return f"Here are some upcoming events:<br>" + "<br>".join(event_links)
+        intro = random.choice(PERSONALITY.get("event_intros", ["Here are some upcoming events:"]))
+        return f"{intro}<br>" + "<br>".join(event_links)
 
     # Restaurants (direct command)
     elif "food in" in user_input_lower or "restaurants in" in user_input_lower:
@@ -308,7 +320,8 @@ def get_bot_response(user_input):
             f'<a href="https://www.google.com/maps/search/{name.replace(" ", "+")}+{city.replace(" ", "+")}" target="_blank">{name}</a>'
             for name in places
         ]
-        return f"Here are some places to eat:<br>" + "<br>".join(restaurant_links)
+        intro = random.choice(PERSONALITY.get("restaurant_intros", ["Here are some places to eat:"]))
+        return f"{intro}<br>" + "<br>".join(restaurant_links)
 
     # Sights
     elif (
@@ -329,7 +342,8 @@ def get_bot_response(user_input):
                     f'<a href="https://www.google.com/maps/search/{name.split(" - ")[0].replace(" ", "+")}+{location.replace(" ", "+")}" target="_blank">{name}</a>'
                     for name in places
                 ]
-                return f"Here are some sights to see near {location}:<br>" + "<br>".join(sight_links)
+                intro = random.choice(PERSONALITY.get("sight_intros", ["Here are some sights to see:"]))
+                return f"{intro}<br>" + "<br>".join(sight_links)
             else:
                 return "Please specify a city, state, country, or zipcode, e.g., 'sights in Paris' or 'tourist near 75001'."
 
@@ -343,7 +357,8 @@ def get_bot_response(user_input):
             f'<a href="https://www.google.com/maps/search/{name.replace(" ", "+")}+{city.replace(" ", "+")}" target="_blank">{name}</a>'
             for name in breweries
         ]
-        return f"Here are some breweries:<br>" + "<br>".join(brewery_links)
+        intro = random.choice(PERSONALITY.get("brewery_intros", ["Here are some breweries:"]))
+        return f"{intro}<br>" + "<br>".join(brewery_links)
 
     # Recipes
     elif "recipes for" in user_input_lower or "recipes with" in user_input_lower or "recipes using" in user_input_lower:
@@ -354,7 +369,8 @@ def get_bot_response(user_input):
             if not recipes:
                 return f"No recipes found with {ingredient}."
             recipe_links = [f'<a href="{url}" target="_blank">{name}</a>' for name, url in recipes]
-            return f"Here are some recipes with {ingredient}:<br>" + "<br>".join(recipe_links)
+            intro = random.choice(PERSONALITY.get("recipe_intros", ["Here are some recipes:"]))
+            return f"{intro}<br>" + "<br>".join(recipe_links)
         else:
             return "Please specify an ingredient, e.g., 'recipes with chicken'."
 
@@ -370,7 +386,8 @@ def get_bot_response(user_input):
             f'<a href="https://www.google.com/maps/search/{name.replace(" ", "+")}+{city.replace(" ", "+")}" target="_blank">{name}</a>'
             for name in theaters
         ]
-        movies_response = "Here are some popular movies right now:<br>" + "<br>".join(movie_links)
+        intro = random.choice(PERSONALITY.get("movie_intros", ["Here are some popular movies right now:"]))
+        movies_response = f"{intro}<br>" + "<br>".join(movie_links)
         theaters_response = f"<br><br>Here are some theaters in {city}:<br>" + "<br>".join(theater_links)
         return movies_response + theaters_response
 
@@ -497,7 +514,8 @@ def get_bot_response(user_input):
                 authors = ", ".join(info.get("authors", [])) if info.get("authors") else "Unknown Author"
                 link = info.get("infoLink", "#")
                 books.append(f'<a href="{link}" target="_blank"><strong>{title}</strong></a> by {authors}')
-            return f"Here are some books about {subject}:<br>" + "<br>".join(books)
+            intro = random.choice(PERSONALITY.get("book_intros", ["Here are some books you might like:"]))
+            return f"{intro}<br>" + "<br>".join(books)
         else:
             return f"No books found for {subject}."
 

@@ -26,5 +26,40 @@
   "fallbacks": [
     "Oops, I didn't get that. Try asking for a movie or a recipe!",
     "Hmm, not sure what you mean. Want to try a different question?"
+  ],
+  "restaurant_intros": [
+    "Here's what I've cooked up for you:",
+    "Feast your eyes on these spots:",
+    "Bon appétit! Check these out:"
+  ],
+  "event_intros": [
+    "Here's what's happening soon:",
+    "Don't miss these events:",
+    "Mark your calendar for these:"
+  ],
+  "sight_intros": [
+    "Sight-seeing, coming right up:",
+    "Here's a view worth checking out:",
+    "Don't miss these sights:"
+  ],
+  "brewery_intros": [
+    "Hop to it! Here are some breweries:",
+    "Pour decisions? Try these breweries:",
+    "Tap into these local spots:"
+  ],
+  "recipe_intros": [
+    "Here's what I've cooked up for you:",
+    "Time to stir things up with these recipes:",
+    "Hungry? Try these tasty ideas:"
+  ],
+  "movie_intros": [
+    "Grab your popcorn! Here are some movies:",
+    "Lights, camera, action! Check these out:",
+    "Movie night? Here are some picks:"
+  ],
+  "book_intros": [
+    "Bookworm mode: activated! Here are some reads:",
+    "Turn the page with these books:",
+    "Here's a novel idea for you:"
   ]
 }
