@@ -1,9 +1,13 @@
 {
+  "bot_name": "Activabot",
+  "tagline": "Your fun-seeking, pun-loving activity sidekick!",
+  "about": "I'm Activabot, your go-to for fun ideas and activities. I love puns, popcorn, and helping you plan a great time!",
+
   "greetings": [
-    "Hey there! 😊",
-    "Hello, friend! 👋",
-    "Hi! Ready for some fun suggestions?"
-  ],
+  "Hey there! 😊 I'm {bot_name}.",
+  "Hello, friend! 👋 {bot_name} at your service.",
+  "Hi! Ready for some fun suggestions from {bot_name}?"
+],
   "greeting_keywords": [
     "hello", "hi", "howdy", "hiya", "sup", "bro", "yo", "hola", "hey", "greetings", "wassup", "what's up"
   ],
@@ -24,9 +28,9 @@
     "bye", "goodbye", "see you", "later", "cya"
   ],
   "fallbacks": [
-    "Oops, I didn't get that. Try asking for a movie or a recipe!",
-    "Hmm, not sure what you mean. Want to try a different question?"
-  ],
+  "Oops, {bot_name} didn't get that. Try asking for a movie or a recipe!",
+  "Hmm, not sure what you mean. {bot_name} is always ready for a different question!"
+],
   "restaurant_intros": [
     "Here's what I've cooked up for you:",
     "Feast your eyes on these spots:",

@@ -240,22 +240,24 @@ def get_bot_response(user_input):
         return random.choice(PERSONALITY.get("goodbyes", ["Goodbye!"]))
 
     # Thanks
-    if any(word in user_input_lower for word in PERSONALITY.get("thanks_keywords", [])):
+    if any(re.search(rf"\b{re.escape(word)}\b", user_input_lower) for word in PERSONALITY.get("thanks_keywords", [])):
         return random.choice(PERSONALITY.get("thanks", ["You're welcome!"]))
 
     # Greetings (match whole words only)
+    bot_name = PERSONALITY.get("bot_name", "Activabot")
     for word in PERSONALITY["greeting_keywords"]:
         if re.search(rf"\b{re.escape(word)}\b", user_input_lower):
-            return random.choice(PERSONALITY["greetings"])
+            greeting = random.choice(PERSONALITY["greetings"]).replace("{bot_name}", bot_name)
+            return greeting
 
     # Help command
     if "help" in user_input_lower or "directions" in user_input_lower:
         return (
-            "<strong>Welcome to the Activity Chatbot!</strong><br><br>"
+            f"<strong>Welcome to {bot_name}!</strong><br><em>Your fun-seeking, pun-loving activity sidekick!</em><br><br>"
             "I can help you find <b>events</b>, <b>restaurants</b>, <b>breweries</b>, <b>sights</b>, <b>theaters</b>, <b>movies</b>, <b>recipes</b>, and <b>books</b>.<br><br>"
             "<b>How to use me:</b><ul>"
             "<li>events in Dallas</li>"
-            "<li>restaurants near 75001</li>"
+            "<li>restaurants near 73019</li>"
             "<li>breweries in Austin</li>"
             "<li>sights in Paris, France</li>"
             "<li>theaters in Miami, OK</li>"
@@ -375,8 +377,12 @@ def get_bot_response(user_input):
             return "Please specify an ingredient, e.g., 'recipes with chicken'."
 
     # Movies + Theaters (combined)
-    elif "movies in" in user_input_lower:
-        city = user_input_lower.split("in")[-1].strip()
+    # Movies + Theaters (combined)
+    elif "movies in" in user_input_lower or "movies near" in user_input_lower:
+        if "movies in" in user_input_lower:
+            city = user_input_lower.split("in")[-1].strip()
+        else:
+            city = user_input_lower.split("near")[-1].strip()
         movies = get_popular_movies()
         theaters = get_geoapify_places(city, category="entertainment.cinema")
         # Make movie titles clickable
@@ -525,7 +531,8 @@ def get_bot_response(user_input):
 
     # Fallback
     else:
-         return random.choice(PERSONALITY["fallbacks"])
+         fallback = random.choice(PERSONALITY["fallbacks"]).replace("{bot_name}", bot_name)
+         return fallback
 
 # Route for Chat Interface
 @app.route("/", methods=["GET", "POST"])
