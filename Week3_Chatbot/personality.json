@@ -3,6 +3,15 @@
   "tagline": "Your fun-seeking, pun-loving activity sidekick!",
   "about": "I'm Activabot, your go-to for fun ideas and activities. I love puns, popcorn, and helping you plan a great time!",
 
+  "joke_intros": [
+  "I love a great joke:",
+  "Here's a pun for you:",
+  "Ready for a laugh?",
+  "Let me tickle your funny bone:",
+  "Joke time!",
+  "Here's something to make you smile:"
+],
+
   "greetings": [
   "Hey there! 😊 I'm {bot_name}.",
   "Hello, friend! 👋 {bot_name} at your service.",
@@ -65,5 +74,139 @@
     "Bookworm mode: activated! Here are some reads:",
     "Turn the page with these books:",
     "Here's a novel idea for you:"
+  ],
+ "movie_facts": {
+  "inception": [
+    "The spinning top is a symbol of Cobb's reality.",
+    "Christopher Nolan spent 10 years writing the screenplay for Inception."
   ]
+},
+"movie_opinions": {
+  "inception": [
+    "Mind-bending and visually stunning! Leo at his best.",
+    "Nolan really bent our minds with this one."
+  ],
+  "sunset boulevard": [
+    "Gloria Swanson really chewed the scenery in this feature!"
+  ],
+  "the godfather": [
+    "Leave the gun, take the cannoli. Classic."
+  ]
+  },
+  "actor_favorites": {
+    "leonardo dicaprio": "My favorite Leo movie is Inception!"
+  },
+    "movie_fallbacks": [
+    "I haven't seen that one, but it's probably worth a watch!",
+    "No fun fact for this title, but it sounds interesting!",
+    "I'm fresh out of trivia for that movie, but I'd grab some popcorn anyway!",
+    "No opinion here, but you might discover a hidden gem!"
+  ],
+"omdb_fact_intros": {
+  "Awards": [
+    "Hold onto your popcorn—this movie's trophy shelf is stacked:",
+    "Awards? Oh, you bet! Check out this haul:",
+    "If you love a winner, this film's got the bling:",
+    "Let’s roll out the red carpet for these accolades:",
+    "This film’s award count might make even Oscar jealous!"
+  ],
+  "BoxOffice": [
+    "Box office numbers incoming—this one made it rain:",
+    "Moviegoers couldn’t resist—look at these ticket sales:",
+    "This film was a cash magnet at the box office:",
+    "Here’s how much popcorn money this blockbuster pulled in:",
+    "The box office results? Drumroll, please:"
+  ],
+  "Production": [
+    "Behind the scenes, these legends made the magic happen:",
+    "The studio that brought this story to life deserves a standing ovation:",
+    "Movie magic courtesy of these creative minds:",
+    "Here’s who called the production shots (and probably ordered the pizza):"
+  ],
+  "Genre": [
+    "Genre check! This one’s a real treat for fans of:",
+    "If you’re into this genre, you’re in for a cinematic feast:",
+    "This film is a perfect example of its genre—chef’s kiss:",
+    "Ready for a genre adventure? Here’s what you’ll get:"
+  ],
+  "Director": [
+    "The director’s vision shines through—here’s the mastermind:",
+    "Calling the shots behind the camera was none other than:",
+    "This film’s creative captain at the helm:",
+    "All credit to the director, who brought this story to life:"
+  ],
+  "Actors": [
+    "The stars of the show? Let me name-drop like a true fan:",
+    "This cast brings the story to life—get ready for some scene-stealing:",
+    "You’ll see these familiar faces lighting up the screen:",
+    "Here’s who steals the spotlight in this flick:"
+  ],
+  "Writer": [
+    "The pen is mightier than the sword, and these writers prove it:",
+    "Story and script by a true wordsmith:",
+    "The words and wit come from this creative genius:",
+    "Here’s who wrote the magic (and probably drank a lot of coffee):"
+  ],
+  "Country": [
+    "This cinematic gem hails from the land of:",
+    "Filmed and produced in this wonderful country:",
+    "The country that gave us this story is:"
+  ],
+  "Language": [
+    "You’ll hear these languages in the film—subtitles optional:",
+    "Brush up on your language skills—here’s what’s spoken:",
+    "The dialogue dances in these tongues—music to my ears!"
+  ],
+  "Released": [
+    "Mark your calendar! This movie premiered on:",
+    "The world first saw this film on a very special day:",
+    "Here’s when it hit the big screen and stole our hearts:"
+  ],
+  "Runtime": [
+    "Settle in! The runtime is just right for a movie marathon:",
+    "Here’s how long you’ll be glued to your seat (no bathroom breaks!):",
+    "Movie length alert—get your snacks ready:"
+  ],
+  "Plot": [
+    "Here’s the scoop on the story (no spoilers, pinky promise!):",
+    "Plot incoming! Get ready for a wild ride:",
+    "Let me set the scene for you, movie-buff style:",
+    "Here’s what’s going down in this flick—grab your popcorn:"
+  ]
+},
+"movie_response_intros": [
+  "Oh, I love movies! Here’s what I found:",
+  "Ready for some cinematic scoop?",
+  "Movie magic incoming:",
+  "Lights, camera, action! Here’s the info:",
+  "Let’s talk movies! Here’s what I dug up:"
+],
+"fact_intros": {
+  "default": [
+    "While we're on the subject, did you know:",
+    "Here's a fun tidbit:",
+    "Random fact time:",
+    "Let me hit you with some trivia:"
+  ],
+  "restaurant": [
+    "Speaking of food, here's a tasty fact:",
+    "While we're talking restaurants, chew on this:",
+    "Food for thought:"
+  ],
+  "oklahoma city": [
+    "Oklahoma City trivia coming up:",
+    "Here's something about OKC:",
+    "Did you know this about Oklahoma City?"
+  ],
+  "custom_facts": {
+  "oklahoma city": [
+    "OKC is home to one of the largest livestock markets in the world.",
+    "The city's capitol is the only one in the US with an oil well directly underneath it."
+  ],
+  "restaurant": [
+    "The world's oldest restaurant is in Spain, founded in 1725.",
+    "The word 'restaurant' comes from the French word for 'restore.'"
+  ]
+}
+}
 }

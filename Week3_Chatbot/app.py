@@ -3,14 +3,6 @@ from dotenv import load_dotenv # To load environment variables from .env file
 import os # To access environment variables
 from flask import Flask, render_template, request
 
-load_dotenv(override=True)  # Load environment variables from .env file
-
-# Load API keys from environment variables
-TICKETMASTER_CONSUMER_KEY = os.getenv("TICKETMASTER_CONSUMER_KEY")
-GEOAPIFY_API_KEY = os.getenv("GEOAPIFY_API_KEY")
-TMDB_API_KEY = os.getenv("TMDB_API_KEY")
-
-
 # Import Python Requests Library for use in API calls
 import requests
 # Import random for random selections
@@ -20,11 +12,235 @@ import json
 #Import re for regex operations so we can match whole words
 import re
 
+load_dotenv(override=True)  # Load environment variables from .env file
+
+# Load API keys from environment variables
+TICKETMASTER_CONSUMER_KEY = os.getenv("TICKETMASTER_CONSUMER_KEY")
+GEOAPIFY_API_KEY = os.getenv("GEOAPIFY_API_KEY")
+TMDB_API_KEY = os.getenv("TMDB_API_KEY")
+OMDB_API_KEY = os.getenv("OMDB_API_KEY")
+# Test OMDb API key (optional, for debugging)
+# url = "http://www.omdbapi.com/"
+# params = {"apikey": OMDB_API_KEY, "t": "Inception"}
+# response = requests.get(url, params=params)
+# print(response.json())
+
+
 # Load personality traits from JSON file
 with open('personality.json') as f:
     PERSONALITY = json.load(f)
 
+import requests
+url = "https://v2.jokeapi.dev/joke/Misc,Pun?type=single&safe-mode"
+response = requests.get(url, timeout=5)
+print(response.status_code)
+print(response.json())
+
+import requests
+url = "https://www.googleapis.com/books/v1/volumes"
+params = {"q": "subject:fiction", "maxResults": 5}
+response = requests.get(url, params=params)
+print(response.status_code)
+print(response.json())
+
+import requests
+import re
+
+def get_wiki_fact(topic):
+    topic_key = topic.lower().replace("_", " ")
+    # Get intros for the topic, or default
+    intros = PERSONALITY.get("fact_intros", {}).get(topic_key, []) + PERSONALITY.get("fact_intros", {}).get("default", [
+        "Here's a fun fact:",
+        "Did you know?",
+        "Let me hit you with some trivia:",
+        "While we're on the subject:"
+    ])
+    intro = random.choice(intros)
+    # Wikipedia API
+    topic_api = topic.replace(" ", "_")
+    url = f"https://en.wikipedia.org/api/rest_v1/page/summary/{topic_api}"
+    headers = {
+        "User-Agent": "Activabot/1.0 (https://yourdomain.com/; contact@example.com)"
+    }
+    try:
+        response = requests.get(url, headers=headers, timeout=5)
+        print(f"Wikipedia API URL: {url} | Status: {response.status_code}")
+        if response.status_code == 200:
+            data = response.json()
+            extract = data.get("extract")
+            if extract:
+                # Split extract into sentences and pick one at random
+                sentences = re.split(r'(?<=[.!?]) +', extract)
+                fact = random.choice([s for s in sentences if len(s.strip()) > 0])
+                return f"{intro} {fact}"
+        # Optionally, add your own custom facts for more variety
+        custom_facts = PERSONALITY.get("custom_facts", {}).get(topic_key, [])
+        if custom_facts:
+            return f"{intro} {random.choice(custom_facts)}"
+        return ""
+    except Exception as e:
+        print("Wikipedia API error:", e)
+        return ""
+
+def get_random_joke(topic=None):
+    # Custom topic jokes
+    custom_jokes = {
+        "restaurant": [
+            "Why did the tomato turn red? Because it saw the salad dressing!",
+            "I asked the waiter for the soup of the day. He said, 'Whiskey.'",
+        ],
+        "book": [
+            "Why are books always cold? Because they have so many fans!",
+            "I’m reading a book on anti-gravity. It’s impossible to put down!",
+        ],
+        # Add more topics as needed
+    }
+    if topic and topic.lower() in custom_jokes:
+        return random.choice(custom_jokes[topic.lower()])
+    # Fallback to JokeAPI
+    url = "https://v2.jokeapi.dev/joke/Misc,Pun?type=single&safe-mode"
+    try:
+        response = requests.get(url, timeout=5)
+        if response.status_code == 200:
+            data = response.json()
+            joke = data.get("joke", "No joke found, but I'm still smiling!")
+            return joke
+    except Exception:
+        return "Sorry, my joke generator is on vacation!"
+
+def get_actor_favorite_movie(actor_name):
+    # Try to get from your personality.json first
+    favorites = PERSONALITY.get("actor_favorites", {})
+    if actor_name.lower() in favorites:
+        return favorites[actor_name.lower()]
+    # Otherwise, fetch from OMDb (or TMDb) dynamically
+    url = "http://www.omdbapi.com/"
+    params = {
+        "apikey": OMDB_API_KEY,
+        "s": actor_name,
+        "type": "movie"
+    }
+    response = requests.get(url, params=params)
+    if response.status_code == 200:
+        data = response.json()
+        movies = data.get("Search", [])
+        if movies:
+            top_movie = movies[0].get("Title", "a movie")
+            return f"My favorite {actor_name} movie is {top_movie}!"
+    return f"I don't have a favorite {actor_name} movie yet, but I'm always open to suggestions!"
+
+def get_personality_opinion_or_fact(movie_title):
+    title_key = movie_title.lower()
+    facts = PERSONALITY.get("movie_facts", {})
+    opinions = PERSONALITY.get("movie_opinions", {})
+    fallbacks = PERSONALITY.get("movie_fallbacks", [])
+    fact_intros = PERSONALITY.get("fact_intros", [
+        "Here's a tidbit:", "Movie trivia time:", "Did you know?", "Fun fact coming up:",
+        "Here's something cool:", "This is one of my top genres:", "Here's a juicy detail:", "Here's a popcorn-worthy fact:"
+    ])
+
+    options = []
+
+    # Add all facts (as individual options)
+    if title_key in facts:
+        fact_list = facts[title_key]
+        if isinstance(fact_list, list):
+            options.extend([f"{random.choice(fact_intros)} {fact}" for fact in fact_list])
+        else:
+            options.append(f"{random.choice(fact_intros)} {fact_list}")
+
+    # Add all opinions (as individual options)
+    if title_key in opinions:
+        opinion_list = opinions[title_key]
+        if isinstance(opinion_list, list):
+            options.extend([f"My take: {op}" for op in opinion_list])
+        else:
+            options.append(f"My take: {opinion_list}")
+
+# Function to get personality opinion or fact about a movie
+def get_personality_opinion_or_fact(movie_title, movie_year=None):
+    title_key = movie_title.lower()
+    facts = PERSONALITY.get("movie_facts", {})
+    opinions = PERSONALITY.get("movie_opinions", {})
+    fallbacks = PERSONALITY.get("movie_fallbacks", [])
+    generic_intros = PERSONALITY.get("fact_intros", [
+        "Here's a tidbit:", "Movie trivia time:", "Did you know?", "Fun fact coming up:",
+        "Here's something cool:", "Here's a juicy detail:", "Here's a popcorn-worthy fact:"
+    ])
+    omdb_fact_intros = PERSONALITY.get("omdb_fact_intros", {})
+
+    options = []
+
+    # Add all facts (as individual options)
+    if title_key in facts:
+        fact_list = facts[title_key]
+        if isinstance(fact_list, list):
+            options.extend([f"{random.choice(generic_intros)} {fact}" for fact in fact_list])
+        else:
+            options.append(f"{random.choice(generic_intros)} {fact_list}")
+
+    # Add all opinions (as individual options)
+    if title_key in opinions:
+        opinion_list = opinions[title_key]
+        if isinstance(opinion_list, list):
+            options.extend([f"My take: {op}" for op in opinion_list])
+        else:
+            options.append(f"My take: {opinion_list}")
+
+    # Add OMDb fields as fun facts, but SKIP Plot (since it's in the main response)
+    data = get_omdb_movie_info(movie_title, movie_year)
+    seen_omdb_values = set()
+    if data:
+        omdb_fields = [
+            ("Awards", "Awards"),
+            ("BoxOffice", "BoxOffice"),
+            ("Production", "Production"),
+            ("Genre", "Genre"),
+            ("Director", "Director"),
+            ("Actors", "Actors"),
+            ("Writer", "Writer"),
+            ("Country", "Country"),
+            ("Language", "Language"),
+            ("Released", "Released"),
+            ("Runtime", "Runtime"),
+        ]
+        for field, label in omdb_fields:
+            value = data.get(field)
+            if value and value != "N/A" and value not in seen_omdb_values:
+                intros = omdb_fact_intros.get(label, generic_intros)
+                intro = random.choice(intros)
+                if not intro.endswith(":"):
+                    intro += ":"
+                formatted = f"{intro} {value}"
+                options.append(formatted)
+                seen_omdb_values.add(value)
+
+    if not options and fallbacks:
+        options.append(random.choice(fallbacks))
+
+    return random.choice(options) if options else ""
+
+# Function to get movie info from OMDb API
+def get_omdb_movie_info(title, year=None):
+    url = "http://www.omdbapi.com/"
+    params = {
+        "apikey": OMDB_API_KEY,
+        "t": title
+    }
+    if year:
+        params["y"] = year
+    response = requests.get(url, params=params)
+    if response.status_code == 200:
+        data = response.json()
+        if data.get("Response") == "True":
+            return data
+        else:
+            return None
+    else:
+        return None
+
 # TMDb Genre Mapping
+# number to genre name mapping from TMDb API
 TMDB_GENRES = {
     "action": 28,
     "adventure": 12,
@@ -83,15 +299,20 @@ def get_book_recommendation(subject="fiction"):
         data = response.json()
         items = data.get("items", [])
         if items:
-            book = random.choice(items)
-            info = book.get("volumeInfo", {})
-            title = info.get("title", "Unknown Title")
-            authors = ", ".join(info.get("authors", [])) if info.get("authors") else "Unknown Author"
-            return f"<strong>{title}</strong> by {authors}"
+            books = []
+            for book in items:
+                info = book.get("volumeInfo", {})
+                title = info.get("title", "Unknown Title")
+                authors = ", ".join(info.get("authors", [])) if info.get("authors") else "Unknown Author"
+                link = info.get("infoLink", "#")
+                books.append(f'<a href="{link}" target="_blank"><strong>{title}</strong></a> by {authors}')
+            intro = random.choice(PERSONALITY.get("book_intros", ["Here are some books you might like:"]))
+            joke_intro = random.choice(PERSONALITY.get("joke_intros", ["Here's a joke:"]))
+            joke = get_random_joke()
+            return f"{intro}<br>" + "<br>".join(books) + f"<br><br><i>{joke_intro} {joke}</i>"
         else:
-            return "No books found for that subject."
-    else:
-        return "Error fetching book recommendations."
+            joke_intro = random.choice(PERSONALITY.get("joke_intros", ["Here's a joke:"]))
+            return f"No books found for {subject}.<br><br><i>{joke}</i>"
 
 # Function to get events from Ticketmaster API
 def get_ticketmaster_events(city):
@@ -148,6 +369,7 @@ def get_geoapify_places(city, category="tourism.sights", radius=80000):
     if response.status_code == 200:
         data = response.json()
         places = data.get("features", [])
+        print("Geoapify places:", places)
         result = []
         for place in places:
             name = place.get("properties", {}).get("name")
@@ -157,6 +379,7 @@ def get_geoapify_places(city, category="tourism.sights", radius=80000):
         return result
     else:
         return []
+    
 
 # Function to get breweries from Open Brewery DB
 def get_breweries(city):
@@ -228,6 +451,41 @@ def get_popular_movies():
         print("TMDb Error:", response.status_code, response.text)
         return []
 
+# Function to search for a movie on TMDb    
+def search_tmdb_movie(title, year=None):
+    url = "https://api.themoviedb.org/3/search/movie"
+    params = {
+        "api_key": TMDB_API_KEY,
+        "query": title,
+    }
+    if year:
+        params["year"] = year
+    response = requests.get(url, params=params)
+    if response.status_code == 200:
+        data = response.json()
+        results = data.get("results", [])
+        # Try to find an exact title match (case-insensitive)
+        exact_matches = [movie for movie in results if movie.get("title", "").lower() == title.lower()]
+        if exact_matches:
+            # Pick the most recent by release_date
+            movie = max(exact_matches, key=lambda m: m.get("release_date", ""))
+            return {
+                "title": movie.get("title"),
+                "year": movie.get("release_date", "")[:4],
+                "id": movie.get("id"),
+                "url": f"https://www.themoviedb.org/movie/{movie.get('id')}"
+            }
+        # Fallback: pick the most recent result
+        if results:
+            movie = max(results, key=lambda m: m.get("release_date", ""))
+            return {
+                "title": movie.get("title"),
+                "year": movie.get("release_date", "")[:4],
+                "id": movie.get("id"),
+                "url": f"https://www.themoviedb.org/movie/{movie.get('id')}"
+            }
+    return None
+
 # Creating Flask App
 app = Flask(__name__)
 
@@ -249,7 +507,7 @@ def get_bot_response(user_input):
         if re.search(rf"\b{re.escape(word)}\b", user_input_lower):
             greeting = random.choice(PERSONALITY["greetings"]).replace("{bot_name}", bot_name)
             return greeting
-
+        
     # Help command
     if "help" in user_input_lower or "directions" in user_input_lower:
         return (
@@ -270,16 +528,85 @@ def get_bot_response(user_input):
             "You can use <b>in</b> or <b>near</b> for city, state, country, or zipcode. If nothing is found, I'll automatically expand the search area!"
         )
 
+    # OMDb movie info intent
+    match = re.search(
+    r"(?:get info (?:about|for|on)|tell me about|movie info|info (?:about|for|on)|what is|who is)\s+(.+?)(?:[.?!]|$)", user_input_lower
+    )
+    if match:
+        movie_title = match.group(1).strip(" .?!,")
+        print(f"OMDb intent triggered. Movie title: '{movie_title}'")  # <-- Add this line
+        data = get_omdb_movie_info(movie_title)
+        print(f"OMDb API response: {data}")  # <-- And this line
+        if data:
+            movie_intro = random.choice(PERSONALITY.get("movie_response_intros", [
+                "Oh, I love movies! Here’s what I found:"
+            ]))
+            # Search TMDb for link
+            tmdb_info = search_tmdb_movie(data.get('Title', movie_title), data.get('Year'))
+            if tmdb_info:
+                title_block = f'<a href="{tmdb_info["url"]}" target="_blank"><b>{data.get("Title", "Unknown")}</b></a> ({data.get("Year", "N/A")})'
+            else:
+                title_block = f'<b>{data.get("Title", "Unknown")}</b> ({data.get("Year", "N/A")})'
+            response = f"{movie_intro}<br>{title_block}<br>"
+            response += f"IMDB Rating: {data.get('imdbRating', 'N/A')}<br>"
+            response += f"Plot: {data.get('Plot', 'No plot available.')}<br>"
+            extra = get_personality_opinion_or_fact(data.get('Title', 'Unknown'))
+            if extra:
+                response += f"<br><i>{extra}</i>"
+            return response
+        else:
+            return f"Sorry, I couldn't find info about {movie_title}."
+        
+    # Director intent
+    match = re.search(r"(?:who directed|director(?: of| for| in)?|who is the director of)\s+(.+?)(?:[.?!]|$)", user_input_lower)
+    if match:
+        movie_title = match.group(1).strip(" .?!,")
+        data = get_omdb_movie_info(movie_title)
+        if data and data.get("Director"):
+            response = f"The director of <b>{data.get('Title', 'Unknown')}</b> is {data['Director']}."
+            return response
+        else:
+            return f"Sorry, I couldn't find the director for {movie_title}."
+
+    # Stars intent
+    match = re.search(r"(?:who starred in|star(?: of| in)?|stars in|who are the stars of)\s+(.+?)(?:[.?!]|$)", user_input_lower)
+    if match:
+        movie_title = match.group(1).strip(" .?!,")
+        data = get_omdb_movie_info(movie_title)
+        if data and data.get("Actors"):
+            response = f"The stars of <b>{data.get('Title', 'Unknown')}</b> are {data['Actors']}."
+            return response
+        else:
+            return f"Sorry, I couldn't find the stars for {movie_title}."
+
+    # OMDb general info intent
+    match = re.search(
+        r"(?:get info (?:about|for|on)|tell me about|movie info|info (?:about|for|on)|what is|who is)\s+(.+?)(?:[.?!]|$)", user_input_lower
+    )
+    if match:
+        movie_title = match.group(1).strip(" .?!,")
+        data = get_omdb_movie_info(movie_title)
+        if data:
+            response = f"<b>{data.get('Title', 'Unknown')}</b> ({data.get('Year', 'N/A')})<br>"
+            response += f"IMDB Rating: {data.get('imdbRating', 'N/A')}<br>"
+            response += f"Plot: {data.get('Plot', 'No plot available.')}<br>"
+            if data.get('Awards'):
+                response += f"Fun Fact: {data['Awards']}<br>"
+            return response
+        else:
+            return f"Sorry, I couldn't find info about {movie_title}."
+
     # Flexible restaurant queries (city, state, country, or zipcode)
     elif (
-        "where can i eat" in user_input_lower
-        or "places to eat" in user_input_lower
-        or "good food" in user_input_lower
-        or "restaurants near" in user_input_lower
-        or "places to eat near" in user_input_lower
-        or "restaurants in" in user_input_lower
-        or "food in" in user_input_lower
-    ):
+    "where can i eat" in user_input_lower
+    or "places to eat" in user_input_lower
+    or "good food" in user_input_lower
+    or "restaurants near" in user_input_lower
+    or "places to eat near" in user_input_lower
+    or "restaurants in" in user_input_lower
+    or "restaurant in" in user_input_lower  # Add this line
+    or "food in" in user_input_lower
+):
         match = re.search(r"(?:near|in)\s+([a-zA-Z0-9 ,]+)", user_input_lower)
         if match:
             location = match.group(1).strip()
@@ -295,7 +622,12 @@ def get_bot_response(user_input):
                 for name in places
             ]
             intro = random.choice(PERSONALITY.get("restaurant_intros", ["Here are some places to eat:"]))
-            return f"{intro}<br>" + "<br>".join(restaurant_links)
+            joke_intro = random.choice(PERSONALITY.get("joke_intros", ["Here's a joke:"]))
+            joke = get_random_joke(topic="restaurant")
+            fact = get_wiki_fact(location)
+            if not fact:
+                fact = get_wiki_fact("restaurant")
+            return f"<strong>Activabot:</strong><br>{intro}<br>" + "<br>".join(restaurant_links) + f"<br><br><i>{joke_intro} {joke}</i><br><br>{fact}"        
         else:
             return "Please specify a city, state, country, or zipcode, e.g., 'restaurants in Dallas' or 'places to eat near 75001'."
 
@@ -310,7 +642,13 @@ def get_bot_response(user_input):
             for name, url in events
         ]
         intro = random.choice(PERSONALITY.get("event_intros", ["Here are some upcoming events:"]))
-        return f"{intro}<br>" + "<br>".join(event_links)
+        joke_intro = random.choice(PERSONALITY.get("joke_intros", ["Here's a joke:"]))
+        fact = get_wiki_fact(city)
+        if not fact:
+            fact = get_wiki_fact("event")
+        joke = get_random_joke(topic="event")
+        return f"<strong>Activabot:</strong><br>{intro}<br>" + "<br>".join(event_links) + f"<br><br><i>{joke_intro} {joke}</i><br><br>{fact}"
+        
 
     # Restaurants (direct command)
     elif "food in" in user_input_lower or "restaurants in" in user_input_lower:
@@ -345,7 +683,12 @@ def get_bot_response(user_input):
                     for name in places
                 ]
                 intro = random.choice(PERSONALITY.get("sight_intros", ["Here are some sights to see:"]))
-                return f"{intro}<br>" + "<br>".join(sight_links)
+                joke_intro = random.choice(PERSONALITY.get("joke_intros", ["Here's a joke:"]))
+                joke = get_random_joke(topic="sightseeing")
+                fact = get_wiki_fact(location)
+                if not fact:
+                    fact = get_wiki_fact("tourism")
+                return f"<strong>Activabot:</strong><br>{intro}<br>" + "<br>".join(sight_links) + f"<br><br><i>{joke_intro} {joke}</i><br><br>{fact}"
             else:
                 return "Please specify a city, state, country, or zipcode, e.g., 'sights in Paris' or 'tourist near 75001'."
 
@@ -360,8 +703,12 @@ def get_bot_response(user_input):
             for name in breweries
         ]
         intro = random.choice(PERSONALITY.get("brewery_intros", ["Here are some breweries:"]))
-        return f"{intro}<br>" + "<br>".join(brewery_links)
-
+        joke_intro = random.choice(PERSONALITY.get("joke_intros", ["Here's a joke:"]))
+        joke = get_random_joke(topic="brewery")
+        fact = get_wiki_fact(city)
+        if not fact:
+            fact = get_wiki_fact("brewery")
+        return f"<strong>Activabot:</strong><br>{intro}<br>" + "<br>".join(brewery_links) + f"<br><br><i>{joke_intro} {joke}</i><br><br>{fact}"
     # Recipes
     elif "recipes for" in user_input_lower or "recipes with" in user_input_lower or "recipes using" in user_input_lower:
         match = re.search(r"recipes (?:for|with|using)\s+([a-zA-Z0-9 \-]+)", user_input_lower)
@@ -372,11 +719,15 @@ def get_bot_response(user_input):
                 return f"No recipes found with {ingredient}."
             recipe_links = [f'<a href="{url}" target="_blank">{name}</a>' for name, url in recipes]
             intro = random.choice(PERSONALITY.get("recipe_intros", ["Here are some recipes:"]))
-            return f"{intro}<br>" + "<br>".join(recipe_links)
+            joke_intro = random.choice(PERSONALITY.get("joke_intros", ["Here's a joke:"]))
+            joke = get_random_joke(topic="recipe")
+            fact = get_wiki_fact(ingredient)
+            if not fact:
+                fact = get_wiki_fact("recipe")
+            return f"<strong>Activabot:</strong><br>{intro}<br>" + "<br>".join(recipe_links) + f"<br><br><i>{joke_intro} {joke}</i><br><br>{fact}"
         else:
             return "Please specify an ingredient, e.g., 'recipes with chicken'."
 
-    # Movies + Theaters (combined)
     # Movies + Theaters (combined)
     elif "movies in" in user_input_lower or "movies near" in user_input_lower:
         if "movies in" in user_input_lower:
@@ -385,19 +736,42 @@ def get_bot_response(user_input):
             city = user_input_lower.split("near")[-1].strip()
         movies = get_popular_movies()
         theaters = get_geoapify_places(city, category="entertainment.cinema")
-        # Make movie titles clickable
-        movie_links = [f'<a href="{url}" target="_blank">{title}</a>' for title, url in movies]
+        # Make movie titles clickable and add a fun fact/opinion for each
+        movie_blocks = []
+        for title, url in movies:
+            tmdb_info = search_tmdb_movie(title)
+            if tmdb_info:
+                omdb_title = tmdb_info["title"]
+                omdb_year = tmdb_info["year"]
+                omdb_fact = get_personality_opinion_or_fact(omdb_title, omdb_year)
+                block = f'<a href="{tmdb_info["url"]}" target="_blank"><strong>{omdb_title}</strong></a>'
+                if omdb_fact:
+                    block += f"<br><i>{omdb_fact}</i>"
+                movie_blocks.append(block)
+            else:
+                # fallback to original
+                omdb_fact = get_personality_opinion_or_fact(title)
+                block = f'<a href="{url}" target="_blank"><strong>{title}</strong></a>'
+                if omdb_fact:
+                    block += f"<br><i>{omdb_fact}</i>"
+                movie_blocks.append(block)
+        intro = random.choice(PERSONALITY.get("movie_response_intros", ["Here are some popular movies right now:"]))
+        movies_response = f"{intro}<br>" + "<br><br>".join(movie_blocks)
         # Make theater names clickable (Google Maps search)
         theater_links = [
-            f'<a href="https://www.google.com/maps/search/{name.replace(" ", "+")}+{city.replace(" ", "+")}" target="_blank">{name}</a>'
+            f'<a href="https://www.google.com/maps/search/{name.split(" - ")[0].replace(" ", "+")}+{city.replace(" ", "+")}" target="_blank">{name}</a>'
             for name in theaters
         ]
-        intro = random.choice(PERSONALITY.get("movie_intros", ["Here are some popular movies right now:"]))
-        movies_response = f"{intro}<br>" + "<br>".join(movie_links)
         theaters_response = f"<br><br>Here are some theaters in {city}:<br>" + "<br>".join(theater_links)
-        return movies_response + theaters_response
+        joke_intro = random.choice(PERSONALITY.get("joke_intros", ["Here's a joke:"]))
+        joke = get_random_joke(topic="movie")
+        fact = get_wiki_fact(city)
+        if not fact:
+            fact = get_wiki_fact("movie")
+        return f"<strong>Activabot:</strong><br>" + movies_response + theaters_response + f"<br><br><i>{joke_intro} {joke}</i><br><br>{fact}"
+        
 
-       # Movies by genre, year, decade, or random
+    # Movies by genre, year, decade, or random
     elif "movie" in user_input_lower:
         import random as pyrandom
 
@@ -450,16 +824,33 @@ def get_bot_response(user_input):
             movies = get_movies_by_genre(genre, year)
             if not movies:
                 return "No movies found for your request."
-            movie_links = [f'<a href="{url}" target="_blank">{title}</a>' for title, url in movies]
+            # For each movie, get a fun fact/opinion
+            movie_blocks = []
+            for title, url in movies:
+                fact = get_personality_opinion_or_fact(title)
+                joke_intro = random.choice(PERSONALITY.get("joke_intros", ["Here's a joke:"]))
+                joke = get_random_joke(topic="movie")
+                block = f'<a href="{url}" target="_blank"><strong>{title}</strong></a>'
+                if fact:
+                    block += f"<br><i>{fact}</i>"
+                movie_blocks.append(block)
+            # Use a personality-packed intro
             if genre and year:
-                header = f"Here are some {genre.title()} movies from {year}:<br>"
+                header = f"{random.choice(PERSONALITY.get('movie_response_intros', ['Movie time!']))} Here are some {genre.title()} movies from {year}:<br>"
             elif genre:
-                header = f"Here are some {genre.title()} movies:<br>"
+                header = f"{random.choice(PERSONALITY.get('movie_response_intros', ['Movie time!']))} Here are some {genre.title()} movies:<br>"
             elif year:
-                header = f"Here are some movies from {year}:<br>"
+                header = f"{random.choice(PERSONALITY.get('movie_response_intros', ['Movie time!']))} Here are some movies from {year}:<br>"
             else:
-                header = "Here are some popular movies right now:<br>"
-            return header + "<br>".join(movie_links)
+                header = f"{random.choice(PERSONALITY.get('movie_response_intros', ['Movie time!']))} Here are some popular movies right now:<br>"
+            joke_intro = random.choice(PERSONALITY.get("joke_intros", ["Here's a joke:"]))
+            joke = get_random_joke(topic="movie")
+            fact = get_wiki_fact(year if year else "movie")
+            if not fact:
+                fact = get_wiki_fact("movie")
+            return header + "<br><br>".join(movie_blocks) + f"<br><br><i>{joke_intro} {joke}</i><br><br>{fact}"
+            
+            
 
     # Theaters only
     elif (
@@ -487,15 +878,11 @@ def get_bot_response(user_input):
     # Book recommendations
         # Book recommendations
     elif "book" in user_input_lower or "read" in user_input_lower or "novel" in user_input_lower:
-        # Try to extract a subject/genre from the user input, default to fiction
-        match = re.search(
-            r"(?:book|books|read|novel|recommendation|recommend|show me|suggest)?(?:\s*(?:about|on|for|in|of|regarding|concerning|related to|on the subject of))?\s*([a-zA-Z0-9 \-]+)?",
-            user_input_lower
-        )
+    # Improved subject extraction
+        match = re.search(r"(?:book|books|read|novel|recommendation|recommend|show me|suggest)?(?:\s*(?:about|on|for|in|of|regarding|concerning|related to|on the subject of))?\s*([a-zA-Z0-9 \-]+)?", user_input_lower)
         subject = match.group(1).strip() if match and match.group(1) else "fiction"
-        # Clean up subject (remove leading words and numbers)
-        subject = re.sub(r"^(a|an|few|some|the|to|me|of|on|about|for|in|show|recommend|suggest|\d+)\s+", "", subject, flags=re.IGNORECASE)
-        subject = subject.strip().lower()
+        # Only keep the last word if multiple words (e.g., "books about romance" → "romance")
+        subject = subject.split()[-1] if subject else "fiction"
         if not subject or subject in ["book", "books", "novel", "recommendation", "recommend", "read"]:
             subject = "fiction"
         url = f"https://www.googleapis.com/books/v1/volumes"
@@ -521,7 +908,12 @@ def get_bot_response(user_input):
                 link = info.get("infoLink", "#")
                 books.append(f'<a href="{link}" target="_blank"><strong>{title}</strong></a> by {authors}')
             intro = random.choice(PERSONALITY.get("book_intros", ["Here are some books you might like:"]))
-            return f"{intro}<br>" + "<br>".join(books)
+            joke_intro = random.choice(PERSONALITY.get("joke_intros", ["Here's a joke:"]))
+            joke = get_random_joke(topic="book")
+            fact = get_wiki_fact(subject)
+            if not fact:
+                fact = get_wiki_fact("book")
+            return f"<strong>Activabot:</strong><br>{intro}<br>" + "<br>".join(books) + f"<br><br><i>{joke_intro} {joke}</i><br><br>{fact}"
         else:
             return f"No books found for {subject}."
 
@@ -531,8 +923,10 @@ def get_bot_response(user_input):
 
     # Fallback
     else:
-         fallback = random.choice(PERSONALITY["fallbacks"]).replace("{bot_name}", bot_name)
-         return fallback
+        fallback = random.choice(PERSONALITY["fallbacks"]).replace("{bot_name}", bot_name)
+        joke_intro = random.choice(PERSONALITY.get("joke_intros", ["Here's a joke:"]))
+        joke = get_random_joke()
+        return f"{fallback}<br><br><i>{joke_intro} {joke}</i>"
 
 # Route for Chat Interface
 @app.route("/", methods=["GET", "POST"])
