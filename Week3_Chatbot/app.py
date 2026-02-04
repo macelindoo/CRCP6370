@@ -3,6 +3,9 @@ from dotenv import load_dotenv # To load environment variables from .env file
 import os # To access environment variables
 from flask import Flask, render_template, request
 
+# Import Open AI
+import openai
+
 # Import Python Requests Library for use in API calls
 import requests
 # Import random for random selections
@@ -19,6 +22,7 @@ TICKETMASTER_CONSUMER_KEY = os.getenv("TICKETMASTER_CONSUMER_KEY")
 GEOAPIFY_API_KEY = os.getenv("GEOAPIFY_API_KEY")
 TMDB_API_KEY = os.getenv("TMDB_API_KEY")
 OMDB_API_KEY = os.getenv("OMDB_API_KEY")
+openai.api_key = os.getenv("OPENAI_API_KEY")
 # Test OMDb API key (optional, for debugging)
 # url = "http://www.omdbapi.com/"
 # params = {"apikey": OMDB_API_KEY, "t": "Inception"}
@@ -42,6 +46,13 @@ params = {"q": "subject:fiction", "maxResults": 5}
 response = requests.get(url, params=params)
 print(response.status_code)
 print(response.json())
+
+def ask_chatgpt(prompt):
+    response = openai.ChatCompletion.create(
+        model="gpt-4",  # or "gpt-3.5-turbo" if you want a cheaper model
+        messages=[{"role": "user", "content": prompt}]
+    )
+    return response.choices[0].message['content']
 
 import requests
 import re
@@ -290,6 +301,23 @@ def get_movies_by_genre(genre=None, year=None):
         print("TMDb Error:", response.status_code, response.text)
         return []
 
+# Function to get book recs from Open Library API
+def get_openlibrary_books(subject="fiction"):
+    url = f"https://openlibrary.org/search.json"
+    params = {"subject": subject, "limit": 10}
+    response = requests.get(url, params=params)
+    if response.status_code == 200:
+        data = response.json()
+        books = []
+        for doc in data.get("docs", []):
+            title = doc.get("title")
+            author = ", ".join(doc.get("author_name", [])) if doc.get("author_name") else "Unknown author"
+            year = doc.get("first_publish_year", "N/A")
+            books.append(f"<b>{title}</b> by {author} ({year})")
+        return books if books else ["No books found for that topic."]
+    else:
+        return ["Sorry, I couldn't fetch books right now."]
+
 # Function to get book recommendations from Google Books API
 def get_book_recommendation(subject="fiction"):
     url = f"https://www.googleapis.com/books/v1/volumes"
@@ -492,6 +520,32 @@ app = Flask(__name__)
 # Simple Bot Logic Function (def): take user input and return a response
 def get_bot_response(user_input):
     user_input_lower = user_input.lower()
+
+    # If the user is asking for a book, movie, or info, allow all topics
+    is_media_query = any(
+        kw in user_input_lower
+        for kw in ["book", "novel", "read", "movie", "film", "show", "series", "documentary"]
+    )
+    is_info_query = any(
+        kw in user_input_lower
+        for kw in ["who is", "what is", "tell me about", "info about", "information about"]
+    )
+
+    # Only block if it's a dangerous intent, not a media/info search
+    if not (is_media_query or is_info_query):
+        dangerous_patterns = [
+            r"how to (make|build|create|cook|synthesize|prepare) (a )?(bomb|poison|explosive|weapon|drug|meth|overdose)",
+            r"recipe for (poison|explosive|bomb|meth|drugs|overdose)",
+            r"best way to (kill|murder|harm|hurt)",
+            r"where to buy (bomb|poison|drugs|weapon|explosive)",
+            r"how can i (kill|murder|harm|hurt|overdose)"
+        ]
+        for pattern in dangerous_patterns:
+            if re.search(pattern, user_input_lower):
+                return (
+                    "Whoa there! 🚨 I'm all about fun and good vibes, not felonies or foul play. "
+                    "How about a recipe for chocolate cake instead? 🍰"
+                )
 
     # Goodbyes
     if any(word in user_input_lower for word in PERSONALITY.get("goodbye_keywords", [])):
@@ -876,46 +930,76 @@ def get_bot_response(user_input):
                 return "Please specify a city, state, country, or zipcode, e.g., 'theaters in Dallas' or 'cinemas near 75001'."
     
     # Book recommendations
-        # Book recommendations
     elif "book" in user_input_lower or "read" in user_input_lower or "novel" in user_input_lower:
-    # Improved subject extraction
-        match = re.search(r"(?:book|books|read|novel|recommendation|recommend|show me|suggest)?(?:\s*(?:about|on|for|in|of|regarding|concerning|related to|on the subject of))?\s*([a-zA-Z0-9 \-]+)?", user_input_lower)
-        subject = match.group(1).strip() if match and match.group(1) else "fiction"
-        # Only keep the last word if multiple words (e.g., "books about romance" → "romance")
-        subject = subject.split()[-1] if subject else "fiction"
-        if not subject or subject in ["book", "books", "novel", "recommendation", "recommend", "read"]:
-            subject = "fiction"
-        url = f"https://www.googleapis.com/books/v1/volumes"
-        params = {"q": f"subject:{subject}", "maxResults": 5}
-        response = requests.get(url, params=params)
-        items = []
-        if response.status_code == 200:
-            data = response.json()
-            items = data.get("items", [])
-        # Fallback: try keyword search if subject search fails
-        if not items and subject != "fiction":
-            params = {"q": subject, "maxResults": 5}
-            response = requests.get(url, params=params)
-            if response.status_code == 200:
-                data = response.json()
-                items = data.get("items", [])
-        if items:
-            books = []
-            for book in items:
+    # Try to extract search type and value
+        author_match = re.search(r"(?:author|by)\s+([a-zA-Z0-9 ,.'-]+)", user_input_lower)
+        genre_match = re.search(r"(?:genre|type|kind of|category)\s+([a-zA-Z0-9 ,.'-]+)", user_input_lower)
+        subject_match = re.search(r"(?:about|on|for|regarding|concerning|related to|subject)\s+([a-zA-Z0-9 ,.'-]+)", user_input_lower)
+        
+        # Default to subject if nothing else
+        search_type = "subject"
+        search_value = "fiction"
+        if author_match:
+            search_type = "author"
+            search_value = author_match.group(1).strip()
+        elif genre_match:
+            search_type = "subject"
+            search_value = genre_match.group(1).strip()
+        elif subject_match:
+            search_type = "subject"
+            search_value = subject_match.group(1).strip()
+        else:
+            # fallback: try to extract a word after "book" or "novel"
+            fallback_match = re.search(r"(?:book|novel|read)\s*(?:about|on|for)?\s*([a-zA-Z0-9 ,.'-]+)?", user_input_lower)
+            if fallback_match and fallback_match.group(1):
+                search_value = fallback_match.group(1).strip()
+
+        # Google Books API
+        google_books = []
+        if search_type == "author":
+            g_query = f"inauthor:{search_value}"
+        else:
+            g_query = f"subject:{search_value}"
+        g_params = {"q": g_query, "maxResults": 5}
+        g_response = requests.get("https://www.googleapis.com/books/v1/volumes", params=g_params)
+        if g_response.status_code == 200:
+            g_data = g_response.json()
+            for book in g_data.get("items", []):
                 info = book.get("volumeInfo", {})
                 title = info.get("title", "Unknown Title")
                 authors = ", ".join(info.get("authors", [])) if info.get("authors") else "Unknown Author"
                 link = info.get("infoLink", "#")
-                books.append(f'<a href="{link}" target="_blank"><strong>{title}</strong></a> by {authors}')
+                google_books.append(f'<a href="{link}" target="_blank"><strong>{title}</strong></a> by {authors} <span style="color:#888">(Google Books)</span>')
+
+        # Open Library API
+        openlibrary_books = []
+        ol_params = {"limit": 5}
+        if search_type == "author":
+            ol_params["author"] = search_value
+        else:
+            ol_params["subject"] = search_value
+        ol_response = requests.get("https://openlibrary.org/search.json", params=ol_params)
+        if ol_response.status_code == 200:
+            ol_data = ol_response.json()
+            for doc in ol_data.get("docs", []):
+                title = doc.get("title")
+                author = ", ".join(doc.get("author_name", [])) if doc.get("author_name") else "Unknown author"
+                year = doc.get("first_publish_year", "N/A")
+                work_key = doc.get("key", "")
+                link = f"https://openlibrary.org{work_key}" if work_key else "#"
+                openlibrary_books.append(f'<a href="{link}" target="_blank"><strong>{title}</strong></a> by {author} ({year}) <span style="color:#888">(Open Library)</span>')
+
+        all_books = google_books + openlibrary_books
+        if all_books:
             intro = random.choice(PERSONALITY.get("book_intros", ["Here are some books you might like:"]))
             joke_intro = random.choice(PERSONALITY.get("joke_intros", ["Here's a joke:"]))
             joke = get_random_joke(topic="book")
-            fact = get_wiki_fact(subject)
+            fact = get_wiki_fact(search_value)
             if not fact:
                 fact = get_wiki_fact("book")
-            return f"<strong>Activabot:</strong><br>{intro}<br>" + "<br>".join(books) + f"<br><br><i>{joke_intro} {joke}</i><br><br>{fact}"
+            return f"<strong>Activabot:</strong><br>{intro}<br>" + "<br>".join(all_books) + f"<br><br><i>{joke_intro} {joke}</i><br><br>{fact}"
         else:
-            return f"No books found for {subject}."
+            return f"No books found for {search_value}."
 
     # Greetings
     elif "hello" in user_input_lower:
